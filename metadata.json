@@ -1,0 +1,5 @@
+{
+  "name": "SrbijaPut OMV Fleet",
+  "description": "Premium kontrolna tabla za praćenje potrošnje goriva i troškova flote sa integracijom Google tabela u realnom vremenu i automatizovanim izveštavanjem.",
+  "requestFramePermissions": []
+}
