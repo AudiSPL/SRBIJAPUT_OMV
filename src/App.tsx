@@ -124,6 +124,10 @@ export default function App() {
       }
     };
     fetchData();
+
+    // Auto-refresh every 5 minutes
+    const interval = setInterval(fetchData, 5 * 60 * 1000);
+    return () => clearInterval(interval);
   }, []);
 
   // --- Filtered Data ---
@@ -179,8 +183,13 @@ export default function App() {
       return acc;
     }, {});
     const trends = Object.values(trendsMap).sort((a: any, b: any) => {
-      // Basic sort by date string (could be improved with actual date objects)
-      return 0; 
+      const dateA = viewBy === 'Month' 
+        ? parse(a.date, 'MMM yyyy', new Date())
+        : parse(a.date, 'dd MMM', new Date());
+      const dateB = viewBy === 'Month' 
+        ? parse(b.date, 'MMM yyyy', new Date())
+        : parse(b.date, 'dd MMM', new Date());
+      return dateA.getTime() - dateB.getTime();
     });
 
     // Chart 4: Latest refuelers
@@ -232,9 +241,9 @@ export default function App() {
       <header className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12">
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-2 bg-white/5 p-2 rounded-2xl border border-white/10">
-            <img src="input_file_0.png" alt="SrbijaPut" className="h-10 w-auto object-contain" referrerPolicy="no-referrer" />
+            <Fuel className="w-8 h-8 text-[#3b82f6]" />
             <div className="w-px h-8 bg-white/20 mx-1" />
-            <img src="input_file_1.png" alt="OMV" className="h-8 w-auto object-contain" referrerPolicy="no-referrer" />
+            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/4/4b/OMV_logo.svg/1200px-OMV_logo.svg.png" alt="OMV" className="h-8 w-auto object-contain" referrerPolicy="no-referrer" />
           </div>
           <div>
             <h1 className="text-2xl font-bold tracking-tight">SrbijaPut OMV Fleet</h1>
@@ -280,6 +289,14 @@ export default function App() {
               className="bg-transparent text-xs font-medium outline-none text-white cursor-pointer"
             />
           </div>
+
+          <button 
+            onClick={() => window.location.reload()}
+            className="p-2.5 bg-[#18181b] border border-[#27272a] rounded-xl hover:bg-[#27272a] transition-colors"
+            title="Osveži podatke"
+          >
+            <Clock className="w-5 h-5 text-[#a1a1aa]" />
+          </button>
 
           <button 
             onClick={() => setShowSettings(!showSettings)}
@@ -484,17 +501,24 @@ export default function App() {
                     </div>
 
                     <div className="space-y-3">
-                      <label className="text-xs font-medium text-[#a1a1aa] uppercase tracking-wider">Obaveštenja o prekomernoj potrošnji</label>
-                      <div className="p-4 bg-[#27272a]/50 rounded-2xl border border-[#27272a] space-y-4">
-                        <div className="flex items-center justify-between">
-                          <p className="text-sm font-medium">Prag (RSD)</p>
-                          <input type="text" defaultValue="50,000" className="bg-transparent text-right text-sm font-bold outline-none text-[#3b82f6]" />
-                        </div>
-                        <div className="flex items-center gap-2 text-xs text-[#71717a]">
-                          <AlertCircle className="w-3.5 h-3.5" />
-                          <span>Obavesti ako potrošnja vozila premaši ovaj iznos dnevno</span>
-                        </div>
-                      </div>
+                      <label className="text-xs font-medium text-[#a1a1aa] uppercase tracking-wider">Ručno slanje izveštaja</label>
+                      <button 
+                        onClick={async () => {
+                          try {
+                            const res = await fetch('/api/send-summary', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ email: 'milossavin@gmail.com' })
+                            });
+                            if (res.ok) alert('Izveštaj je poslat na milossavin@gmail.com');
+                          } catch (e) {
+                            alert('Greška pri slanju');
+                          }
+                        }}
+                        className="w-full py-3 bg-[#18181b] border border-[#27272a] hover:bg-[#27272a] text-white rounded-2xl text-sm font-medium transition-all"
+                      >
+                        Pošalji testni izveštaj odmah
+                      </button>
                     </div>
 
                     <button 

@@ -14,13 +14,57 @@ async function startServer() {
 
   app.use(express.json());
 
-  // Mock Email Automation Logic
-  // In a real app, you'd use a service like Resend or SendGrid
-  const sendDailySummary = async () => {
-    console.log("Triggering daily summary email at 08:00 AM...");
-    // Logic to fetch data, generate HTML, and send via nodemailer
-    // const transporter = nodemailer.createTransport({...});
-    // await transporter.sendMail({...});
+  // Gmail Configuration
+  const transporter = nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+      user: process.env.GMAIL_USER,
+      pass: process.env.GMAIL_APP_PASSWORD,
+    },
+  });
+
+  const sendDailySummary = async (toEmail?: string) => {
+    console.log("Triggering summary email...");
+    try {
+      // Fetch data from Google Sheets
+      const sheetUrl = "https://docs.google.com/spreadsheets/d/1taPBLXDC4KEjyzQ5K8lJ_amB15Fa0azraEc_XEcaa_E/export?format=csv&gid=0";
+      const response = await fetch(sheetUrl);
+      const csvData = await response.text();
+
+      // Simple summary calculation
+      const lines = csvData.split("\n").slice(1);
+      let totalSpend = 0;
+      lines.forEach(line => {
+        const parts = line.split(",");
+        if (parts.length > 1) {
+          totalSpend += parseFloat(parts[1]) || 0;
+        }
+      });
+
+      const mailOptions = {
+        from: process.env.GMAIL_USER,
+        to: toEmail || "milossavin@gmail.com",
+        subject: `SrbijaPut Fleet - Dnevni Izveštaj - ${new Date().toLocaleDateString()}`,
+        html: `
+          <div style="font-family: sans-serif; padding: 20px; color: #333;">
+            <h2 style="color: #3b82f6;">SrbijaPut OMV Fleet Intelligence</h2>
+            <p>Pregled potrošnje za današnji dan:</p>
+            <div style="background: #f3f4f6; padding: 15px; border-radius: 8px; margin: 20px 0;">
+              <p style="margin: 0; font-size: 14px; color: #666;">Ukupna potrošnja</p>
+              <h1 style="margin: 5px 0; color: #111;">${new Intl.NumberFormat('sr-RS', { style: 'currency', currency: 'RSD' }).format(totalSpend)}</h1>
+            </div>
+            <p>Za detaljniji pregled, posetite <a href="${process.env.APP_URL || '#'}" style="color: #3b82f6;">Dashboard</a>.</p>
+            <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />
+            <p style="font-size: 12px; color: #999;">Ovo je automatski generisan izveštaj.</p>
+          </div>
+        `,
+      };
+
+      await transporter.sendMail(mailOptions);
+      console.log("Email sent successfully!");
+    } catch (error) {
+      console.error("Error sending email:", error);
+    }
   };
 
   // Schedule daily email at 8:00 AM
@@ -31,6 +75,12 @@ async function startServer() {
   // API Routes
   app.get("/api/health", (req, res) => {
     res.json({ status: "ok" });
+  });
+
+  app.post("/api/send-summary", async (req, res) => {
+    const { email } = req.body;
+    await sendDailySummary(email);
+    res.json({ message: "Email sent" });
   });
 
   // Proxy endpoint for Google Sheets CSV to avoid CORS issues if any
